@@ -285,13 +285,9 @@ const ReqOrderAction = ({
                   <ActionButton
                     icon={MdOutlineEdit}
                     onClick={() => setShowRequestEditModal(true)}
-                    disabled={
-                      orderData?.status === "canceled" ||
-                      orderData?.status === "refunded"
-                    }
+                    disabled={orderData?.status !== "pending"}
                     color={` ${
-                      orderData?.status === "canceled" ||
-                      orderData?.status === "refunded"
+                      orderData?.status !== "pending"
                         ? "cursor-not-allowed text-gray-300"
                         : "hover:bg-slate-200"
                     }`}

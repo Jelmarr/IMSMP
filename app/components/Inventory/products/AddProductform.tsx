@@ -61,7 +61,7 @@ const AddProductForm = () => {
       productService.addProduct({
         ...data,
         category: data.category.trim().toLowerCase(),
-      })
+      }),
     );
 
   const { data: categories, refetch } = useQuery<ProductCategory[]>({
@@ -95,7 +95,7 @@ const AddProductForm = () => {
       }
 
       const response = await fetch(
-        `/api/product/check_product_name?${params.toString()}`
+        `/api/product/check_product_name?${params.toString()}`,
       );
       const data = await response.json();
 
@@ -147,6 +147,11 @@ const AddProductForm = () => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)}>
+          {errors.root?.serverError && (
+            <div className="mb-4 p-3 rounded bg-red-50 border border-red-200 text-red-600 text-sm">
+              {errors.root.serverError.message}
+            </div>
+          )}
           <div className="border py-6 px-4 rounded-lg">
             {/* General */}
             <div className="flex flex-col gap-6 md:grid md:grid-cols-2">

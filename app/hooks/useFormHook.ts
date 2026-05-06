@@ -5,7 +5,7 @@ import { FieldValues, Path, UseFormSetError } from "react-hook-form";
 
 export function useFormHook<T extends FieldValues>(
   setError: UseFormSetError<T>,
-  onSuccess?: () => void
+  onSuccess?: () => void,
 ) {
   const router = useRouter();
 
@@ -18,7 +18,7 @@ export function useFormHook<T extends FieldValues>(
         });
       });
     },
-    [setError]
+    [setError],
   );
 
   const handleSubmitWrapper = useCallback(
@@ -35,7 +35,10 @@ export function useFormHook<T extends FieldValues>(
 
         // Handle ApiError with validation errors
         if (error instanceof ApiError) {
-          if (error.statusCode === 422 && error.errors) {
+          if (
+            (error.statusCode === 400 || error.statusCode === 422) &&
+            error.errors
+          ) {
             handleErrors(error.errors as Record<string, string>);
           } else {
             // Handle other API errors (500, 404, etc.)
@@ -55,7 +58,7 @@ export function useFormHook<T extends FieldValues>(
         return false;
       }
     },
-    [handleErrors, onSuccess, router, setError]
+    [handleErrors, onSuccess, router, setError],
   );
 
   return { handleSubmitWrapper };
