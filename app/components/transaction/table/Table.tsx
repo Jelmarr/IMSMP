@@ -37,24 +37,22 @@ export default function TransactionTable({
                     transaction.patientDetails?.patientName
                       ? transaction.patientDetails?.patientName
                       : transaction?.customer
-                      ? transaction?.customer
-                      : "Unknown"
+                        ? transaction?.customer
+                        : "Unknown",
                   )}
                 </TableCell>
                 <TableCell>
                   {formattedDateTime(transaction.createdAt)}
                 </TableCell>
                 <TableCell>{transaction.quantity}</TableCell>
-                <TableCell>{`₱${transaction.paymentDetails?.[0].amountDue.toFixed(
-                  2
-                )}`}</TableCell>
+                <TableCell>{`₱${transaction.paymentDetails?.[0]?.amountDue?.toFixed(2) ?? "0.00"}`}</TableCell>
                 <TableCell>{transaction.source}</TableCell>
                 <TableCell>
                   {transaction.type === "REGULAR"
                     ? "Regular"
                     : transaction.type === "EMERGENCY"
-                    ? "Pay Later"
-                    : "N/A"}
+                      ? "Pay Later"
+                      : "N/A"}
                 </TableCell>
                 <TableCell>{statusLabels[transaction.status]}</TableCell>
                 <TableCell className="w-[120px]" align="right">

@@ -224,7 +224,7 @@ const buildReceipt = (data: ReceiptData): string => {
 // ============================================
 const printReceipt = (
   receipt: string,
-  onPrintDialogClosed?: () => void
+  onPrintDialogClosed?: () => void,
 ): boolean => {
   try {
     const printWindow = window.open("", "printReceipt", "width=400,height=600");
@@ -237,23 +237,35 @@ const printReceipt = (
       <html>
         <head>
           <title>Macoleen's Pharmacy Receipt</title>
-          <style>
-            @page { size: 80mm auto; margin: 0; }
+        <style>
+          @page {
+            margin: 0;
+          }
+
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 302px;
+          }
+
+          body {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.2;
+            white-space: pre;
+          }
+
+          pre {
+            margin: 0;
+            line-height: 1.2;
+          }
+
+          @media print {
             body {
-              font-family: 'Courier New', monospace;
-              font-size: 11px;
-              line-height: 1.2;
-              white-space: pre;
-              margin: 0;
-              padding: 8px;
-              width: 80mm;
-              max-width: 80mm;
+              width: 302px;
             }
-            pre {
-              margin: 0;
-              line-height: 1.3;
-            }
-          </style>
+          }
+        </style>
         </head>
         <body>
           <pre>${escapeHtml(receipt)}</pre>
@@ -292,7 +304,7 @@ const printReceipt = (
 export const printOrderRequest = (
   printData: OrderView,
   subtotal: number,
-  onPrintDialogClosed?: () => void
+  onPrintDialogClosed?: () => void,
 ): boolean => {
   try {
     const receiptData: ReceiptData = {
@@ -343,7 +355,7 @@ interface WalkInPaymentData {
 
 export const printWalkInReceipt = (
   paymentData: WalkInPaymentData,
-  onPrintDialogClosed?: () => void
+  onPrintDialogClosed?: () => void,
 ): boolean => {
   try {
     const formatProductName = (item: CartItem): string => {

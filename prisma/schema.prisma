@@ -8,54 +8,292 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(uuid())
-  username String @unique
-  role     Role
-  email    String @unique
-  password String
+  id                      String              @id @default(uuid())
+  username                String              @unique
+  role                    Role
+  email                   String              @unique
+  password                String
+  firstName               String              @default("N/A")
+  lastName                String              @default("N/A")
+  middleName              String?
+  profileImage            String?
+  otp                     String?
+  otpExpiresAt            DateTime?
+  createdAt               DateTime            @default(now())
+  status                  UserStatus          @default(ACTIVE)
+  bannedReason            String?
+  bannedAt                DateTime?
+  mustChangePassword      Boolean             @default(true)
+  lastSeen                DateTime            @default(now()) @updatedAt
+  isOnline                Boolean             @default(false)
+  AuditLog                AuditLog[]
+  medTechRequestsApproved MedTechRequest[]    @relation("MedTechApprovedBy")
+  archivedMedTechRequests MedTechRequest[]    @relation("ArchivedMedTechRequests")
+  medTechRequestsReceived MedTechRequest[]    @relation("MedTechReceivedBy")
+  medTechRequestsCreated  MedTechRequest[]    @relation("MedTechRequestedBy")
+  ReceivedNotification    Notification[]      @relation("ReceivedNotification")
+  SentNotification        Notification[]      @relation("SentNotification")
+  ArchivedOrderRequests   OrderRequest[]      @relation("ArchivedOrderRequests")
+  DispensedOrders         OrderRequest[]      @relation("DispensedBy")
+  PreparedOrders          OrderRequest[]      @relation("PreparedBy")
+  ReceivedOrders          OrderRequest[]      @relation("ReceivedBy")
+  OrderRequest            OrderRequest[]      @relation("RequestedBy")
+  paymentsProcessed       Payment[]           @relation("PaymentProcessedBy")
+  ArchivedProducts        Product[]           @relation("ArchivedProducts")
+  Product                 Product[]
+  ArchivedBatches         ProductBatch[]      @relation("ArchivedBatches")
+  refundsProcessed        Refund[]            @relation("RefundProcessedBy")
+  WalkInTransaction       WalkInTransaction[]
+}
 
-  firstName  String  @default("N/A")
-  lastName   String  @default("N/A")
-  middleName String?
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  action      String
+  entityType  String
+  entityId    Int?
+  description String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
 
-  profileImage String?
+model Product {
+  id                   Int                  @id @default(autoincrement())
+  product_name         String
+  status               String               @default("ACTIVE")
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  categoryId           Int?
+  genericName          String?
+  manufacturer         String?
+  description          String?
+  strength             String?
+  dosageForm           String?
+  requiresPrescription Boolean              @default(false)
+  price                Decimal
+  minimumStockAlert    Decimal              @default(6)
+  archivedById         String?
+  archiveAt            DateTime?
+  archiveReason        String?
+  userId               String?
+  medTechRequestItems  MedTechRequestItem[]
+  Notification         Notification[]
+  orderItems           OrderItem[]
+  archivedByUser       User?                @relation("ArchivedProducts", fields: [archivedById], references: [id])
+  category             ProductCategory?     @relation(fields: [categoryId], references: [id])
+  user                 User?                @relation(fields: [userId], references: [id])
+  batches              ProductBatch[]
+  WalkInItem           WalkInItem[]
+}
 
-  otp          String?
-  otpExpiresAt DateTime?
-  createdAt    DateTime  @default(now())
+model ProductBatch {
+  id              Int       @id @default(autoincrement())
+  productId       Int
+  archiveAt       DateTime?
+  archiveReason   String?
+  archivedById    String?
+  batchNumber     String
+  quantity        Int       @default(0)
+  manufactureDate DateTime
+  expiryDate      DateTime
+  type            String    @default("ACTIVE")
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  archivedByUser  User?     @relation("ArchivedBatches", fields: [archivedById], references: [id])
+  product         Product   @relation(fields: [productId], references: [id])
+}
 
-  status       UserStatus @default(ACTIVE)
-  bannedReason String?
-  bannedAt     DateTime?
+model ProductCategory {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  products Product[]
+}
 
-  mustChangePassword Boolean @default(true)
+model MedTechRequest {
+  id             Int                  @id @default(autoincrement())
+  notes          String?
+  status         MedTechStatus        @default(pending_for_approval)
+  remarks        MedTechRemarks       @default(processing)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  requestedById  String
+  receivedById   String?
+  receivedAt     DateTime?
+  approvedById   String?
+  approvedAt     DateTime?
+  archivedById   String?
+  isArchived     Boolean              @default(false)
+  archiveReason  String?
+  approvedBy     User?                @relation("MedTechApprovedBy", fields: [approvedById], references: [id])
+  archivedByUser User?                @relation("ArchivedMedTechRequests", fields: [archivedById], references: [id])
+  receivedBy     User?                @relation("MedTechReceivedBy", fields: [receivedById], references: [id])
+  requestedBy    User                 @relation("MedTechRequestedBy", fields: [requestedById], references: [id])
+  items          MedTechRequestItem[]
+  Notification   Notification[]
+  orderRequests  OrderRequest[]       @relation("MedTechOrderRequests")
+}
 
-  OrderRequest      OrderRequest[]      @relation("RequestedBy")
-  WalkInTransaction WalkInTransaction[]
+model MedTechRequestItem {
+  id               Int            @id @default(autoincrement())
+  quantityOrdered  Decimal
+  totalPrice       Decimal
+  medTechRequestId Int
+  productId        Int
+  medTechRequest   MedTechRequest @relation(fields: [medTechRequestId], references: [id], onDelete: Cascade)
+  product          Product        @relation(fields: [productId], references: [id])
+}
 
-  ReceivedOrders  OrderRequest[] @relation("ReceivedBy")
-  PreparedOrders  OrderRequest[] @relation("PreparedBy")
-  DispensedOrders OrderRequest[] @relation("DispensedBy")
+model Patient {
+  id            String         @id @default(cuid())
+  patientNumber Int            @unique @default(autoincrement())
+  patientName   String
+  roomNumber    Int?
+  contactNumber String?
+  updatedAt     DateTime       @updatedAt
+  createdAt     DateTime       @default(now())
+  orderRequest  OrderRequest[]
 
-  paymentsProcessed Payment[] @relation("PaymentProcessedBy")
-  refundsProcessed  Refund[]  @relation("RefundProcessedBy")
+  @@index([patientName])
+}
 
-  Product  Product[]
-  AuditLog AuditLog[]
-  lastSeen DateTime   @default(now()) @updatedAt
-  isOnline Boolean    @default(false)
+model Payment {
+  id              Int                @id @default(autoincrement())
+  orderRequestId  Int?
+  walkInOrderId   Int?
+  subTotal        Decimal
+  discountAmount  Decimal            @default(0)
+  discountPercent Decimal            @default(0)
+  discountType    DiscountType       @default(NONE)
+  vatRate         Decimal            @default(12)
+  vatAmount       Decimal
+  vatExempt       Decimal            @default(0)
+  zeroRated       Decimal            @default(0)
+  amountDue       Decimal
+  amountTendered  Decimal
+  change          Decimal            @default(0)
+  processedById   String
+  createdAt       DateTime           @default(now())
+  orderRequest    OrderRequest?      @relation(fields: [orderRequestId], references: [id], onDelete: Cascade)
+  processedBy     User               @relation("PaymentProcessedBy", fields: [processedById], references: [id])
+  walkInOrder     WalkInTransaction? @relation(fields: [walkInOrderId], references: [id], onDelete: Cascade)
 
-  SentNotification     Notification[] @relation("SentNotification")
-  ReceivedNotification Notification[] @relation("ReceivedNotification")
+  @@index([orderRequestId])
+  @@index([walkInOrderId])
+}
 
-  ArchivedProducts      Product[]      @relation("ArchivedProducts")
-  ArchivedBatches       ProductBatch[] @relation("ArchivedBatches")
-  ArchivedOrderRequests OrderRequest[] @relation("ArchivedOrderRequests")
+model Refund {
+  id             Int                @id @default(autoincrement())
+  orderRequestId Int?
+  walkInOrderId  Int?
+  refundAmount   Decimal
+  refundReason   String
+  refundedById   String
+  refundedAt     DateTime           @default(now())
+  orderRequest   OrderRequest?      @relation(fields: [orderRequestId], references: [id], onDelete: Cascade)
+  refundedBy     User               @relation("RefundProcessedBy", fields: [refundedById], references: [id])
+  walkInOrder    WalkInTransaction? @relation(fields: [walkInOrderId], references: [id], onDelete: Cascade)
 
-  medTechRequestsCreated  MedTechRequest[] @relation("MedTechRequestedBy")
-  medTechRequestsReceived MedTechRequest[] @relation("MedTechReceivedBy")
-  medTechRequestsApproved MedTechRequest[] @relation("MedTechApprovedBy")
-  archivedMedTechRequests MedTechRequest[] @relation("ArchivedMedTechRequests")
+  @@index([orderRequestId])
+  @@index([walkInOrderId])
+}
+
+model OrderRequest {
+  id               Int             @id @default(autoincrement())
+  patientId        String
+  status           Status
+  remarks          Remarks         @default(preparing)
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  totalAmount      Decimal
+  type             OrderType       @default(REGULAR)
+  medTechRequestId Int?
+  archivedById     String?
+  isArchived       Boolean         @default(false)
+  archiveReason    String?
+  userId           String
+  receivedById     String?
+  receivedAt       DateTime?
+  preparedById     String?
+  dispensedById    String?
+  preparedAt       DateTime?
+  dispensedAt      DateTime?
+  Notification     Notification[]
+  items            OrderItem[]
+  archivedByUser   User?           @relation("ArchivedOrderRequests", fields: [archivedById], references: [id])
+  dispensedBy      User?           @relation("DispensedBy", fields: [dispensedById], references: [id])
+  medTechRequest   MedTechRequest? @relation("MedTechOrderRequests", fields: [medTechRequestId], references: [id])
+  patient          Patient         @relation(fields: [patientId], references: [id])
+  preparedBy       User?           @relation("PreparedBy", fields: [preparedById], references: [id])
+  receivedBy       User?           @relation("ReceivedBy", fields: [receivedById], references: [id])
+  user             User            @relation("RequestedBy", fields: [userId], references: [id])
+  payments         Payment[]
+  refunds          Refund[]
+}
+
+model OrderItem {
+  id               Int          @id @default(autoincrement())
+  refundedQuantity Decimal
+  orderId          Int
+  productId        Int
+  quantityOrdered  Decimal
+  price            Decimal
+  totalPrice       Decimal
+  order            OrderRequest @relation(fields: [orderId], references: [id])
+  product          Product      @relation(fields: [productId], references: [id])
+}
+
+model WalkInTransaction {
+  id            Int            @id @default(autoincrement())
+  customer_name String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  status        Status
+  totalAmount   Decimal        @default(0.00)
+  userId        String
+  Notification  Notification[]
+  payments      Payment[]
+  refunds       Refund[]
+  items         WalkInItem[]
+  user          User           @relation(fields: [userId], references: [id])
+}
+
+model WalkInItem {
+  id               Int               @id @default(autoincrement())
+  quantity         Int
+  refundedQuantity Int               @default(0)
+  price            Decimal
+  total            Decimal
+  productId        Int
+  transactionId    Int
+  product          Product           @relation(fields: [productId], references: [id])
+  transaction      WalkInTransaction @relation(fields: [transactionId], references: [id])
+}
+
+model Notification {
+  id               Int                @id @default(autoincrement())
+  title            String
+  read             Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  senderId         String
+  recipientId      String
+  orderId          Int?
+  walkInOrderId    Int?
+  medTechRequestId Int?
+  productId        Int?
+  type             NotificationType?
+  patientName      String?
+  roomNumber       String?
+  submittedBy      String?
+  role             String?
+  medTechRequest   MedTechRequest?    @relation(fields: [medTechRequestId], references: [id])
+  order            OrderRequest?      @relation(fields: [orderId], references: [id])
+  product          Product?           @relation(fields: [productId], references: [id])
+  recipient        User               @relation("ReceivedNotification", fields: [recipientId], references: [id])
+  sender           User               @relation("SentNotification", fields: [senderId], references: [id])
+  walkInOrder      WalkInTransaction? @relation(fields: [walkInOrderId], references: [id])
 }
 
 enum Role {
@@ -72,130 +310,6 @@ enum UserStatus {
   DISABLE
 }
 
-model AuditLog {
-  id     Int    @id @default(autoincrement())
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  action      String // e.g. CREATE_ORDER, UPDATE_USER
-  entityType  String // e.g. User, Order, Product
-  entityId    Int? // The affected record (nullable in case it's a general action)
-  description String? // Human-readable summary
-
-  createdAt DateTime @default(now())
-}
-
-model Product {
-  id           Int      @id @default(autoincrement())
-  product_name String
-  status       String   @default("ACTIVE") // ACTIVE | ARCHIVED
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  categoryId Int?
-  category   ProductCategory? @relation(fields: [categoryId], references: [id])
-
-  genericName          String?
-  manufacturer         String?
-  description          String?
-  strength             String? // e.g., "500mg", "100 units/ml"
-  dosageForm           String? // tablet, capsule, powder, solution, suspension, etc.
-  requiresPrescription Boolean @default(false)
-  price Decimal
-  minimumStockAlert Decimal @default(6)
-  
-  archivedById   String?
-  archivedByUser User?     @relation("ArchivedProducts", fields: [archivedById], references: [id])
-  archiveAt      DateTime?
-  archiveReason  String?
-
-  // Relationships
-  batches             ProductBatch[]
-  orderItems          OrderItem[]
-  WalkInItem          WalkInItem[]
-  Notification        Notification[]
-  medTechRequestItems MedTechRequestItem[]
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id])
-
-}
-
-model ProductBatch {
-  id        Int     @id @default(autoincrement())
-  productId Int
-  product   Product @relation(fields: [productId], references: [id])
-
-  archiveAt      DateTime?
-  archiveReason  String?
-  archivedById   String?
-  archivedByUser User?     @relation("ArchivedBatches", fields: [archivedById], references: [id])
-
-  batchNumber     String
-  quantity        Int      @default(0)
-  manufactureDate DateTime
-  expiryDate      DateTime
-  type            String   @default("ACTIVE") // ACTIVE | EXPIRING | EXPIRED | CONSUMED | ARCHIVED
-  notes           String?  
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model ProductCategory {
-  id       Int       @id @default(autoincrement())
-  name     String    @unique
-  products Product[]
-}
-
-model MedTechRequest {
-  id      Int            @id @default(autoincrement())
-  notes   String?
-  status  MedTechStatus  @default(pending_for_approval)
-  remarks MedTechRemarks @default(processing)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Requester (MedTech)
-  requestedBy   User   @relation("MedTechRequestedBy", fields: [requestedById], references: [id])
-  requestedById String
-
-  // Receiver (Pharmacist who receives)
-  receivedBy   User?     @relation("MedTechReceivedBy", fields: [receivedById], references: [id])
-  receivedById String?
-  receivedAt   DateTime?
-
-  // Approver (Pharmacist who approves/releases)
-  approvedBy   User?     @relation("MedTechApprovedBy", fields: [approvedById], references: [id])
-  approvedById String?
-  approvedAt   DateTime?
-
-  // Back-relation to OrderRequest
-  orderRequests OrderRequest[] @relation("MedTechOrderRequests")
-
-  // Archive tracking
-  archivedById   String?
-  archivedByUser User?   @relation("ArchivedMedTechRequests", fields: [archivedById], references: [id])
-  isArchived     Boolean @default(false)
-  archiveReason  String?
-
-  items        MedTechRequestItem[]
-  Notification Notification[]
-}
-
-model MedTechRequestItem {
-  id Int @id @default(autoincrement())
-
-  quantityOrdered Decimal 
-  totalPrice Decimal 
-
-  medTechRequest   MedTechRequest @relation(fields: [medTechRequestId], references: [id], onDelete: Cascade)
-  medTechRequestId Int
-  product          Product        @relation(fields: [productId], references: [id])
-  productId        Int
-}
-
 enum MedTechStatus {
   pending_for_approval
   approved
@@ -208,127 +322,11 @@ enum MedTechRemarks {
   released
 }
 
-model Patient {
-  id            String  @id @default(cuid())
-  patientNumber Int     @unique @default(autoincrement())
-  patientName   String
-  roomNumber    Int?
-  contactNumber String?
-
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
-
-  orderRequest OrderRequest[]
-
-  @@index([patientName])
-}
-
 enum DiscountType {
   NONE
   SENIOR
   PWD
   CUSTOM
-}
-
-model Payment {
-  id Int @id @default(autoincrement())
-
-  orderRequest   OrderRequest? @relation(fields: [orderRequestId], references: [id], onDelete: Cascade)
-  orderRequestId Int?
-
-  walkInOrder   WalkInTransaction? @relation(fields: [walkInOrderId], references: [id], onDelete: Cascade)
-  walkInOrderId Int?
-
-  subTotal        Decimal  // before discount, VAT-inclusive
-  discountAmount  Decimal @default(0) 
-  discountPercent Decimal @default(0)
-  discountType  DiscountType  @default(NONE)
-
-  vatRate      Decimal @default(12)
-  vatAmount    Decimal 
-  vatExempt    Decimal @default(0) 
-  zeroRated    Decimal @default(0) 
-
-  amountDue        Decimal  // final payable
-  amountTendered   Decimal 
-  change           Decimal @default(0) 
-
-  processedBy   User   @relation("PaymentProcessedBy", fields: [processedById], references: [id])
-  processedById String
-
-  createdAt DateTime @default(now())
-
-  @@index([orderRequestId])
-  @@index([walkInOrderId])
-}
-
-model Refund {
-  id Int @id @default(autoincrement())
-
-  orderRequest   OrderRequest? @relation(fields: [orderRequestId], references: [id], onDelete: Cascade)
-  orderRequestId Int?
-
-  walkInOrder   WalkInTransaction? @relation(fields: [walkInOrderId], references: [id], onDelete: Cascade)
-  walkInOrderId Int?
-
-  refundAmount Decimal 
-  refundReason String
-
-  refundedBy   User   @relation("RefundProcessedBy", fields: [refundedById], references: [id])
-  refundedById String
-
-  refundedAt DateTime @default(now())
-
-  @@index([orderRequestId])
-  @@index([walkInOrderId])
-}
-
-model OrderRequest {
-  id Int @id @default(autoincrement())
-
-  patient   Patient @relation(fields: [patientId], references: [id])
-  patientId String
-
-  status    Status
-  remarks   Remarks  @default(preparing)
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  totalAmount Decimal
-
-  type OrderType @default(REGULAR)
-
-  // Link to MedTechRequest
-  medTechRequest   MedTechRequest? @relation("MedTechOrderRequests", fields: [medTechRequestId], references: [id])
-  medTechRequestId Int?
-
-  // Archive tracking
-  archivedById   String?
-  archivedByUser User?   @relation("ArchivedOrderRequests", fields: [archivedById], references: [id])
-  isArchived     Boolean @default(false)
-  archiveReason  String?
-
-  user   User   @relation("RequestedBy", fields: [userId], references: [id])
-  userId String
-
-  receivedBy   User?   @relation("ReceivedBy", fields: [receivedById], references: [id])
-  receivedById String?
-
-  receivedAt  DateTime?
-
-  preparedBy    User?   @relation("PreparedBy", fields: [preparedById], references: [id])
-  preparedById  String?
-  dispensedBy   User?   @relation("DispensedBy", fields: [dispensedById], references: [id])
-  dispensedById String?
-
-  preparedAt  DateTime?
-  dispensedAt DateTime?
-
-  refunds      Refund[]
-  payments     Payment[]
-  items        OrderItem[]
-  Notification Notification[]
 }
 
 enum Remarks {
@@ -340,48 +338,6 @@ enum Remarks {
 enum OrderType {
   REGULAR
   EMERGENCY
-}
-
-model OrderItem {
-  id               Int          @id @default(autoincrement())
-  refundedQuantity Decimal
-  order            OrderRequest @relation(fields: [orderId], references: [id])
-  orderId          Int
-  product          Product      @relation(fields: [productId], references: [id])
-  productId        Int
-
-  quantityOrdered Decimal 
-  price           Decimal 
-  totalPrice Decimal 
-}
-
-model WalkInTransaction {
-  id            Int      @id @default(autoincrement())
-  customer_name String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  status        Status
-
-  payments Payment[]
-  refunds  Refund[]
-
-  items        WalkInItem[]
-  totalAmount  Decimal        @default(0.00)
-  userId       String // pharmacist who encoded the walk-in
-  user         User           @relation(fields: [userId], references: [id])
-  Notification Notification[]
-}
-
-model WalkInItem {
-  id               Int               @id @default(autoincrement())
-  quantity         Int
-  refundedQuantity Int               @default(0)
-  price            Decimal
-  total            Decimal // quantity * price
-  product          Product           @relation(fields: [productId], references: [id])
-  productId        Int
-  transaction      WalkInTransaction @relation(fields: [transactionId], references: [id])
-  transactionId    Int
 }
 
 enum Status {
@@ -406,36 +362,4 @@ enum NotificationType {
   EMERGENCY_ORDER
   REMARKS
   WALK_IN
-}
-
-model Notification {
-  id        Int      @id @default(autoincrement())
-  title     String
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  senderId    String
-  recipientId String
-  sender      User   @relation("SentNotification", fields: [senderId], references: [id])
-  recipient   User   @relation("ReceivedNotification", fields: [recipientId], references: [id])
-
-  orderId Int?
-  order   OrderRequest? @relation(fields: [orderId], references: [id])
-
-  walkInOrderId Int?
-  walkInOrder   WalkInTransaction? @relation(fields: [walkInOrderId], references: [id])
-
-  medTechRequest   MedTechRequest? @relation(fields: [medTechRequestId], references: [id])
-  medTechRequestId Int?
-
-  productId Int?
-  product   Product? @relation(fields: [productId], references: [id])
-
-  type NotificationType?
-
-  patientName String?
-  roomNumber  String?
-  submittedBy String?
-  role        String?
 }
